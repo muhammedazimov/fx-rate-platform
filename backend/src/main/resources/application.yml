@@ -1,0 +1,37 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: fx-rate-hub
+  
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+
+# Hazelcast Configuration (Placeholders for future implementation)
+# hazelcast:
+#   cluster-name: fx-rate-cluster
+#   network:
+#     join:
+#       multicast:
+#         enabled: false
+#       tcp-ip:
+#         enabled: true
+#         members: 127.0.0.1
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    root: INFO
+    com.fxrate.platform: DEBUG
