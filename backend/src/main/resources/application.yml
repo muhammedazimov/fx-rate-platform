@@ -10,6 +10,19 @@ spring:
     port: 5672
     username: guest
     password: guest
+    listener:
+      simple:
+        default-requeue-rejected: false
+        retry:
+          enabled: true
+          initial-interval: 1000ms
+          max-attempts: 3
+          max-interval: 10000ms
+          multiplier: 2.0
+
+app:
+  rabbitmq:
+    rate-input-queue: rate.input.queue
 
 # Hazelcast Configuration (Placeholders for future implementation)
 # hazelcast:

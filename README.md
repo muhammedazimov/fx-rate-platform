@@ -8,7 +8,7 @@ The intended final system will ingest FX rate messages through RabbitMQ, validat
 
 ## Current Status
 
-This repository is currently in the **Initial Scaffolding** phase. 
+This repository is currently in the **RabbitMQ Ingestion Foundation** phase. 
 
 Implemented so far:
 
@@ -17,12 +17,12 @@ Implemented so far:
 - Java 17 setup
 - Health check endpoint (`/api/health`)
 - Docker Compose infrastructure for RabbitMQ and Hazelcast
-- Initial architecture documentation in `docs/architecture.md`
+- **RabbitMQ Queue and Consumer**: Ingestion layer for `rate.input.queue` is implemented.
+- **Message Validation**: Incoming rates are validated for business rules (positive values, valid spread, etc.).
+- **Logging**: Valid rates are logged as `[RATE_ACCEPTED]`, and invalid rates as `[RATE_REJECTED]`.
 
 Not implemented yet:
 
-- RabbitMQ rate consumer
-- Rate validation and business processing
 - Hazelcast IMap cache integration
 - Hazelcast Topic based multi-instance event distribution
 - WebSocket live broadcasting
@@ -126,10 +126,38 @@ docker compose up -d
 - **RabbitMQ Management UI**: [http://localhost:15672](http://localhost:15672) (guest / guest)
 - **Hazelcast Instance**: `localhost:5701`
 
+### Manual Testing (RabbitMQ Ingestion)
+
+1. Start the infrastructure: `docker compose up -d`
+2. Start the backend: `cd backend` then `.\mvnw.cmd spring-boot:run`
+3. Open RabbitMQ Management UI at [http://localhost:15672](http://localhost:15672).
+4. Navigate to **Queues** -> `rate.input.queue`.
+5. Under **Publish message**, paste a valid JSON:
+   ```json
+   {
+     "provider": "LP1",
+     "pair": "EUR/USD",
+     "bid": 1.0845,
+     "ask": 1.0847,
+     "timestamp": 1710000000123
+   }
+   ```
+6. Check backend logs for: `[RATE_ACCEPTED] provider=LP1 pair=EUR/USD bid=1.0845 ask=1.0847 timestamp=1710000000123`
+7. Publish an invalid message (e.g., `ask` lower than `bid`):
+   ```json
+   {
+     "provider": "LP1",
+     "pair": "EUR/USD",
+     "bid": 1.0850,
+     "ask": 1.0840,
+     "timestamp": 1710000000123
+   }
+   ```
+8. Check backend logs for: `[RATE_REJECTED] reason=ASK_LESS_THAN_BID payload=...`
+
 ## Next Steps
 
-- Implement RabbitMQ Producer/Consumer logic for FX rates.
-- Integrate Hazelcast for distributed caching of latest rates.
+- Integrate Hazelcast for distributed caching of latest rates (IMap).
 - Implement inter-instance signaling via Hazelcast Topic.
 - Implement WebSocket broadcasting to handle live client updates.
 - Develop the Frontend UI to display real-time rate changes.
