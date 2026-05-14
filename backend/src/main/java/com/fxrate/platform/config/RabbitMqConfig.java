@@ -37,6 +37,8 @@ public class RabbitMqConfig {
         SimpleRabbitListenerContainerFactory factory = new SimpleRabbitListenerContainerFactory();
         factory.setConnectionFactory(connectionFactory);
         factory.setMessageConverter(jsonMessageConverter());
+        // Prevent malformed/unconvertible messages from being requeued forever.
+        factory.setDefaultRequeueRejected(false);
         return factory;
     }
 }

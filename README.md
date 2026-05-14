@@ -20,6 +20,10 @@ Implemented so far:
 - **RabbitMQ Queue and Consumer**: Ingestion layer for `rate.input.queue` is implemented.
 - **Message Validation**: Incoming rates are validated for business rules (positive values, valid spread, etc.).
 - **Logging**: Valid rates are logged as `[RATE_ACCEPTED]`, and invalid rates as `[RATE_REJECTED]`.
+- **Error Handling**:
+    - Business-invalid messages are validated inside the consumer and logged as rejected without throwing exceptions.
+    - Malformed or unconvertible messages are not requeued forever because the RabbitMQ listener container is configured with `defaultRequeueRejected=false`.
+    - A future production improvement could route such messages to a Dead Letter Queue.
 
 Not implemented yet:
 

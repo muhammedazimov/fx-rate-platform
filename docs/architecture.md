@@ -9,7 +9,8 @@ The "Real-Time FX Rate Platform" follows a reactive, event-driven architecture t
 3. **Spring Boot Rate Hub (Ingestion & Validation)**:
     - Consumes messages from RabbitMQ using `@RabbitListener`.
     - Performs business validation (e.g., positive rates, valid spread).
-    - Invalid messages are logged as `[RATE_REJECTED]` and discarded to prevent infinite retry loops.
+    - Invalid messages are logged as `[RATE_REJECTED]` and discarded (not requeued) to prevent infinite retry loops.
+    - Malformed JSON messages that fail conversion are also not requeued due to `defaultRequeueRejected=false` configuration.
     - Valid messages are logged as `[RATE_ACCEPTED]` and proceed to the next phase.
 4. **Processing (Future)**:
     - Updates the **Hazelcast IMap** with the latest rate for each symbol (ensuring timestamp ordering).
