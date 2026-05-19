@@ -8,7 +8,7 @@ The intended final system will ingest FX rate messages through RabbitMQ, validat
 
 ## Current Status
 
-The backend currently supports RabbitMQ ingestion, Hazelcast caching, REST snapshot APIs, and local-instance WebSocket streaming. 
+The backend currently supports RabbitMQ Ingestion, Hazelcast caching, REST snapshot APIs, and Hazelcast Topic based multi-instance WebSocket synchronization.
 
 Implemented so far:
 
@@ -28,12 +28,12 @@ Implemented so far:
   - `GET /api/rates` returns all cached latest rates sorted alphabetically by pair.
   - `GET /api/rates/{base}/{quote}` returns the latest rate for the resolved pair (normalized to uppercase).
   - Returns standard `404` errors with `ErrorResponse` if the pair is not found.
-- **WebSocket Live Streaming**:
-  - Exposes `ws://localhost:8080/ws/rates` endpoint for local WebSocket clients to subscribe and stream live rate updates.
+- **WebSocket Live Streaming & Hazelcast Topic Synchronization**:
+  - Exposes `ws://localhost:8080/ws/rates` endpoint for clients to subscribe and stream live rate updates.
+  - Hazelcast Topic propagates successful rate updates across backend instances. Each instance broadcasts received topic updates to its own local WebSocket clients.
 
 Not implemented yet:
 
-- Hazelcast Topic multi-instance broadcast
 - Frontend
 - Producer/load simulation
 
@@ -248,11 +248,11 @@ docker compose up -d
     `[RATE_REJECTED] reason=ASK_LESS_THAN_BID payload=...`
     *(Note: Rejected rates are NOT broadcasted to WebSocket).*
 
-### Limitations
-- **Local instance only**: The WebSocket broadcaster currently only runs on the local application instance processing the RabbitMQ message. Multi-instance WebSocket synchronization via a shared Hazelcast Topic will be implemented in a subsequent phase.
+### Multi-Instance Synchronization
+- **Hazelcast Topic Sync**: Hazelcast Topic propagates successful rate updates across backend instances. Each instance broadcasts received topic updates to its own local WebSocket clients.
+- **WebSocket Sessions**: WebSocket sessions remain local to each backend instance, but synchronization of broadcast updates is achieved transparently across the cluster via the shared topic.
 
 ## Next Steps
 
-- Implement inter-instance signaling via Hazelcast Topic.
 - Add a simple rate producer/load simulator.
 - Develop the Frontend UI to display real-time rate changes.

@@ -6,7 +6,7 @@ import com.fxrate.platform.rate.service.RateCacheService;
 import com.fxrate.platform.rate.service.RateProcessingService;
 import com.fxrate.platform.rate.service.RateValidationService;
 import com.fxrate.platform.rate.service.ValidationResult;
-import com.fxrate.platform.websocket.service.RateWebSocketBroadcaster;
+import com.fxrate.platform.rate.service.RateUpdatePublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
@@ -20,7 +20,7 @@ public class RateConsumer {
     private final RateValidationService validationService;
     private final RateProcessingService rateProcessingService;
     private final RateCacheService rateCacheService;
-    private final RateWebSocketBroadcaster rateWebSocketBroadcaster;
+    private final RateUpdatePublisher rateUpdatePublisher;
 
     @RabbitListener(queues = "${app.rabbitmq.rate-input-queue:rate.input.queue}")
     public void consumeRate(RateMessage message) {
@@ -30,7 +30,7 @@ public class RateConsumer {
             Rate processedRate = rateProcessingService.process(message);
             boolean updated = rateCacheService.updateCache(processedRate);
             if (updated) {
-                rateWebSocketBroadcaster.broadcastRateUpdate(processedRate);
+                rateUpdatePublisher.publish(processedRate);
             }
         } else {
             log.warn("[RATE_REJECTED] reason={} payload={}", result.reason(), message);

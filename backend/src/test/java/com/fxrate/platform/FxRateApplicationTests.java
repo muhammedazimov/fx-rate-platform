@@ -160,4 +160,38 @@ class FxRateApplicationTests {
         webSocketHandler.afterConnectionClosed(session, org.springframework.web.socket.CloseStatus.NORMAL);
         assertThat(webSocketHandler.getSessionSubscriptions()).doesNotContainKey(session);
     }
+
+    @Test
+    void testHazelcastTopicSubscriptionAndBroadcast() throws Exception {
+        org.springframework.web.socket.WebSocketSession session = org.mockito.Mockito.mock(org.springframework.web.socket.WebSocketSession.class);
+        org.mockito.Mockito.when(session.getId()).thenReturn("topic-session-123");
+        org.mockito.Mockito.when(session.isOpen()).thenReturn(true);
+
+        webSocketHandler.afterConnectionEstablished(session);
+        String subscribeJson = "{\"type\":\"SUBSCRIBE\",\"pairs\":[\"EUR/USD\"]}";
+        webSocketHandler.handleMessage(session, new org.springframework.web.socket.TextMessage(subscribeJson));
+
+        org.mockito.Mockito.reset(session);
+        org.mockito.Mockito.when(session.isOpen()).thenReturn(true);
+
+        com.hazelcast.topic.ITopic<com.fxrate.platform.rate.event.RateUpdateEvent> topic =
+                hazelcastInstance.getTopic(com.fxrate.platform.rate.config.RateTopicNames.RATE_UPDATES_TOPIC);
+
+        com.fxrate.platform.rate.event.RateUpdateEvent event = new com.fxrate.platform.rate.event.RateUpdateEvent(
+                "LP1", "EUR/USD", new BigDecimal("1.0855"), new BigDecimal("1.0858"), new BigDecimal("0.0003"), false, 1710000002000L, System.currentTimeMillis()
+        );
+        topic.publish(event);
+
+        await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
+            org.mockito.Mockito.verify(session).sendMessage(org.mockito.Mockito.argThat(msg -> {
+                if (msg instanceof org.springframework.web.socket.TextMessage) {
+                    String payload = ((org.springframework.web.socket.TextMessage) msg).getPayload();
+                    return payload.contains("RATE_UPDATE") && payload.contains("EUR/USD") && payload.contains("1.0855");
+                }
+                return false;
+            }));
+        });
+
+        webSocketHandler.afterConnectionClosed(session, org.springframework.web.socket.CloseStatus.NORMAL);
+    }
 }
