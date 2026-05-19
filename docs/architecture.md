@@ -4,7 +4,7 @@
 The "Real-Time FX Rate Platform" follows a reactive, event-driven architecture to ensure low-latency delivery of exchange rate updates.
 
 ## Flow
-1. **Rate Producer**: An external or internal service publishes FX rate updates to a **RabbitMQ** queue (e.g., `rate.input.queue`).
+1. **Rate Producer**: An external or internal service publishes FX rate updates to a **RabbitMQ** queue (e.g., `rate.input.queue`). An optional backend-side **Rate Producer Simulator** is implemented as an optional testing tool, publishing fake rates to RabbitMQ.
 2. **RabbitMQ**: Routes messages to queues consumed by the **Spring Boot Rate Hub**.
 3. **Spring Boot Rate Hub (Ingestion & Validation)**:
     - Consumes messages from RabbitMQ using `@RabbitListener`.

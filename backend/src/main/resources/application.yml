@@ -28,6 +28,13 @@ app:
   hazelcast:
     cluster-name: ${HAZELCAST_CLUSTER_NAME:fx-rate-cluster}
     address: ${HAZELCAST_ADDRESS:localhost:5701}
+  producer:
+    enabled: ${RATE_PRODUCER_ENABLED:false}
+    interval-ms: ${RATE_PRODUCER_INTERVAL_MS:1000}
+    pairs:
+      - EUR/USD
+      - USD/TRY
+      - GBP/USD
 
 management:
   endpoints:

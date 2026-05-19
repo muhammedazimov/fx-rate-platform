@@ -252,7 +252,13 @@ docker compose up -d
 - **Hazelcast Topic Sync**: Hazelcast Topic propagates successful rate updates across backend instances. Each instance broadcasts received topic updates to its own local WebSocket clients.
 - **WebSocket Sessions**: WebSocket sessions remain local to each backend instance, but synchronization of broadcast updates is achieved transparently across the cluster via the shared topic.
 
+### Rate Producer Simulator
+- **Disabled by default**: The simulated rate producer is inactive by default.
+- **Enable**: Run the application with the environment variable `RATE_PRODUCER_ENABLED=true` to generate and publish fake rates to RabbitMQ.
+- **Utility**: Useful for validating REST snapshot endpoints and WebSocket subscription live streaming.
+  - Windows PowerShell: `$env:RATE_PRODUCER_ENABLED="true"; .\mvnw.cmd spring-boot:run`
+  - Linux/Mac: `RATE_PRODUCER_ENABLED=true ./mvnw spring-boot:run`
+
 ## Next Steps
 
-- Add a simple rate producer/load simulator.
 - Develop the Frontend UI to display real-time rate changes.
