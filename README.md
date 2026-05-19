@@ -259,6 +259,28 @@ docker compose up -d
   - Windows PowerShell: `$env:RATE_PRODUCER_ENABLED="true"; .\mvnw.cmd spring-boot:run`
   - Linux/Mac: `RATE_PRODUCER_ENABLED=true ./mvnw spring-boot:run`
 
-## Next Steps
+## Frontend Live Rate Screen
 
-- Develop the Frontend UI to display real-time rate changes.
+A React + Vite frontend application is available in the `frontend` directory.
+
+### Prerequisites
+- The backend Spring Boot application must be running (at `http://localhost:8080`).
+- (Optional) Enable the Rate Producer Simulator on the backend to see live rate updates.
+
+### Running the Frontend
+1. Navigate to the frontend directory:
+   ```bash
+   cd frontend
+   ```
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+3. Run the development server:
+   ```bash
+   npm run dev
+   ```
+4. Build for production:
+   ```bash
+   npm run build
+   ```

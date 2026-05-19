@@ -1,0 +1,223 @@
+/* Clean and modern dark theme styles for FX Rate Hub */
+
+:root {
+  --bg-color: #0f172a;
+  --card-bg: #1e293b;
+  --border-color: #334155;
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  
+  --connected: #10b981;
+  --connecting: #f59e0b;
+  --disconnected: #ef4444;
+  
+  --alarm: #ef4444;
+  --flash-bg: rgba(16, 185, 129, 0.15);
+  --alarm-bg: rgba(239, 68, 68, 0.08);
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg-color);
+  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.app-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.title-section h1 {
+  margin: 0 0 0.25rem 0;
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+
+.subtitle {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 1rem;
+}
+
+/* Status Indicator */
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background-color: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.status-connected .status-dot {
+  background-color: var(--connected);
+  box-shadow: 0 0 8px var(--connected);
+}
+.status-connected {
+  color: var(--connected);
+}
+
+.status-connecting .status-dot {
+  background-color: var(--connecting);
+  box-shadow: 0 0 8px var(--connecting);
+}
+.status-connecting {
+  color: var(--connecting);
+}
+
+.status-disconnected .status-dot {
+  background-color: var(--disconnected);
+  box-shadow: 0 0 8px var(--disconnected);
+}
+.status-disconnected {
+  color: var(--disconnected);
+}
+
+/* Error Banner */
+.error-banner {
+  background-color: rgba(239, 68, 68, 0.1);
+  border: 1px solid var(--disconnected);
+  color: var(--disconnected);
+  padding: 1rem;
+  border-radius: 0.5rem;
+  margin-bottom: 1.5rem;
+  font-size: 0.875rem;
+}
+
+/* Table Card */
+.table-card {
+  background-color: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 0.75rem;
+  overflow: hidden;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+}
+
+.rates-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.9375rem;
+}
+
+.rates-table th {
+  background-color: rgba(15, 23, 42, 0.5);
+  padding: 1rem 1.5rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-color);
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+}
+
+.rates-table td {
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-primary);
+  transition: background-color 0.15s ease;
+}
+
+.rates-table tr:last-child td {
+  border-bottom: none;
+}
+
+.bold-text {
+  font-weight: 600;
+}
+
+.price-text {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.spread-text {
+  color: var(--text-secondary);
+}
+
+.empty-row {
+  text-align: center;
+  padding: 3rem !important;
+  color: var(--text-secondary);
+}
+
+/* Badges */
+.provider-badge {
+  background-color: #334155;
+  color: var(--text-primary);
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  font-weight: 500;
+}
+
+.alarm-badge {
+  background-color: var(--alarm);
+  color: white;
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  font-weight: bold;
+  letter-spacing: 0.05em;
+}
+
+.alarm-normal {
+  color: var(--text-secondary);
+}
+
+.timestamp-text {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+/* Row Flash Highlight */
+.flash-row td {
+  background-color: var(--flash-bg) !important;
+}
+
+/* Alarm Row style */
+.alarm-active-row td {
+  background-color: var(--alarm-bg);
+}
+
+/* Responsive Table */
+@media (max-width: 768px) {
+  .app-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  .status-indicator {
+    align-self: flex-start;
+  }
+  .table-card {
+    overflow-x: auto;
+  }
+}
