@@ -5,6 +5,7 @@ import com.fxrate.platform.rate.model.Rate;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
+import java.util.Locale;
 
 @Service
 public class RateProcessingService {
@@ -23,10 +24,11 @@ public class RateProcessingService {
         BigDecimal spread = message.ask().subtract(message.bid());
         boolean alarm = spread.compareTo(spreadAlarmThreshold) > 0;
         long receivedAt = System.currentTimeMillis();
+        String normalizedPair = message.pair().trim().toUpperCase(Locale.ROOT);
 
         return new Rate(
                 message.provider(),
-                message.pair(),
+                normalizedPair,
                 message.bid(),
                 message.ask(),
                 spread,

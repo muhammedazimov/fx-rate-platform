@@ -23,8 +23,13 @@ The "Real-Time FX Rate Platform" follows a reactive, event-driven architecture t
 7. **WebSocket Broadcasting (Future)**: Upon receiving a message from the Hazelcast Topic, each instance broadcasts the update to all its locally connected **WebSocket** clients.
 8. **Frontend (Future)**: Receives real-time updates via WebSockets and displays them to the user.
 
+## REST Snapshot API
+- **Purpose**: Before establishing a WebSocket subscription, clients query `GET /api/rates` to fetch the current snapshot of all exchange rates. This ensures the UI is instantly populated.
+- **Implementation**: The REST endpoints query the Hazelcast `IMap` named `"rates"` directly.
+- **Sorting**: Rates returned from `GET /api/rates` are sorted alphabetically by currency pair.
+
 ## Why Hazelcast Topic?
 In a multi-instance deployment, a WebSocket client is connected to only one specific instance. When an update arrives from RabbitMQ, it might be consumed by *any* instance. By using Hazelcast Topic, the consuming instance can notify *all* other instances of the update, ensuring that every connected client receives the data regardless of which instance they are connected to.
 
 ---
-*Note: This is the intended final architecture. Ingesting, validation, processing, and Hazelcast state caching are fully implemented. Topic publishing and WebSocket broadcasting are not yet implemented.*
+*Note: This is the intended final architecture. Ingesting, validation, processing, Hazelcast state caching, and the REST Snapshot API are fully implemented. Topic publishing and WebSocket broadcasting are not yet implemented.*

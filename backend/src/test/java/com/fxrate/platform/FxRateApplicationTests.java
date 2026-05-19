@@ -8,15 +8,22 @@ import org.junit.jupiter.api.Test;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
+@AutoConfigureMockMvc
 class FxRateApplicationTests {
 
     @Autowired
@@ -25,11 +32,14 @@ class FxRateApplicationTests {
     @Autowired
     private HazelcastInstance hazelcastInstance;
 
+    @Autowired
+    private MockMvc mockMvc;
+
     @Value("${app.rabbitmq.rate-input-queue:rate.input.queue}")
     private String queueName;
 
     @Test
-    void testRateProcessingAndCaching() throws Exception {
+    void testRateProcessingCachingAndRestEndpoints() throws Exception {
         IMap<String, Rate> ratesMap = hazelcastInstance.getMap("rates");
         ratesMap.clear();
 
@@ -80,5 +90,35 @@ class FxRateApplicationTests {
         Rate rateAfterInvalid = ratesMap.get("EUR/USD");
         assertThat(rateAfterInvalid.timestamp()).isEqualTo(1710000000999L);
         assertThat(rateAfterInvalid.bid()).isEqualByComparingTo("1.0850");
+
+        // 5. Test REST Endpoint: GET /api/rates
+        mockMvc.perform(get("/api/rates"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$[0].pair").value("EUR/USD"))
+                .andExpect(jsonPath("$[0].provider").value("LP1"))
+                .andExpect(jsonPath("$[0].bid").value(1.0850))
+                .andExpect(jsonPath("$[0].ask").value(1.0853))
+                .andExpect(jsonPath("$[0].spread").value(0.0003))
+                .andExpect(jsonPath("$[0].alarm").value(false))
+                .andExpect(jsonPath("$[0].timestamp").value(1710000000999L));
+
+        // 6. Test REST Endpoint: GET /api/rates/EUR/USD (exact match)
+        mockMvc.perform(get("/api/rates/EUR/USD"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.pair").value("EUR/USD"))
+                .andExpect(jsonPath("$.timestamp").value(1710000000999L));
+
+        // 7. Test REST Endpoint: GET /api/rates/eur/usd (case-insensitive path variables mapping/normalization)
+        mockMvc.perform(get("/api/rates/eur/usd"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.pair").value("EUR/USD"))
+                .andExpect(jsonPath("$.timestamp").value(1710000000999L));
+
+        // 8. Test REST Endpoint: GET /api/rates/USD/TRY (non-existent, should return 404 with ErrorResponse)
+        mockMvc.perform(get("/api/rates/USD/TRY"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("RATE_NOT_FOUND"))
+                .andExpect(jsonPath("$.message").value("No rate found for pair USD/TRY"));
     }
 }

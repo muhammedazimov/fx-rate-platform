@@ -8,7 +8,7 @@ The intended final system will ingest FX rate messages through RabbitMQ, validat
 
 ## Current Status
 
-This repository is currently in the **Rate Processing and Hazelcast Cache** phase. 
+This repository is currently in the **REST Snapshot API** phase. 
 
 Implemented so far:
 
@@ -23,19 +23,15 @@ Implemented so far:
 - **Hazelcast Caching**: The latest valid rate per currency pair is cached in a Hazelcast IMap named `"rates"`.
 - **Timestamp Concurrency & Ordering**: Only updates with a newer timestamp than the currently cached rate are processed; stale or duplicate messages are ignored.
 - **Concurrency Control**: Pair-level locking is used on the IMap to prevent race conditions during updates.
-- **Logging**:
-    - Invalid business messages are logged as `[RATE_REJECTED]`.
-    - Successful updates are logged as `[RATE_UPDATED]`.
-    - Stale or duplicate timestamp updates are logged as `[RATE_STALE_IGNORED]`.
-- **Error Handling**:
-    - Business-invalid messages are validated inside the consumer and logged as rejected without throwing exceptions.
-    - Malformed or unconvertible messages are not requeued forever because the RabbitMQ listener container is configured with `defaultRequeueRejected=false`.
-    - A future production improvement could route such messages to a Dead Letter Queue.
+- **Logging**: Clean logging for validation failures, updates, and stale-message drops.
+- **REST Snapshot API**:
+  - `GET /api/rates` returns all cached latest rates sorted alphabetically by pair.
+  - `GET /api/rates/{base}/{quote}` returns the latest rate for the resolved pair (normalized to uppercase).
+  - Returns standard `404` errors with `ErrorResponse` if the pair is not found.
 
 Not implemented yet:
 
-- REST snapshot endpoints
-- WebSocket broadcasting
+- WebSocket live streaming
 - Hazelcast Topic multi-instance broadcast
 - Frontend
 - Producer/load simulation
@@ -154,7 +150,7 @@ docker compose up -d
 - **RabbitMQ Management UI**: [http://localhost:15672](http://localhost:15672) (guest / guest)
 - **Hazelcast Instance**: `localhost:5701`
 
-### Manual Testing (RabbitMQ Ingestion and Caching)
+### Manual Testing (RabbitMQ Ingestion, Caching, and REST API)
 
 1. Start the infrastructure: `docker compose up -d`
 2. Start the backend: `cd backend` then `.\mvnw.cmd spring-boot:run`
@@ -172,7 +168,49 @@ docker compose up -d
    ```
 6. Check backend logs for:
    `[RATE_UPDATED] pair=EUR/USD provider=LP1 bid=1.0845 ask=1.0847 spread=0.0002 alarm=false timestamp=1710000000123`
-7. Publish an older message for the same pair:
+7. Perform REST API requests:
+   - To get all rates:
+     `curl http://localhost:8080/api/rates`
+     Expected response:
+     ```json
+     [
+       {
+         "provider": "LP1",
+         "pair": "EUR/USD",
+         "bid": 1.0845,
+         "ask": 1.0847,
+         "spread": 0.0002,
+         "alarm": false,
+         "timestamp": 1710000000123,
+         "receivedAt": 1710000009999
+       }
+     ]
+     ```
+   - To get a single pair (resolves uppercase automatically):
+     `curl http://localhost:8080/api/rates/eur/usd`
+     Expected response:
+     ```json
+     {
+       "provider": "LP1",
+       "pair": "EUR/USD",
+       "bid": 1.0845,
+       "ask": 1.0847,
+       "spread": 0.0002,
+       "alarm": false,
+       "timestamp": 1710000000123,
+       "receivedAt": 1710000009999
+     }
+     ```
+   - To query a non-existent pair:
+     `curl http://localhost:8080/api/rates/usd/try`
+     Expected response (HTTP 404):
+     ```json
+     {
+       "code": "RATE_NOT_FOUND",
+       "message": "No rate found for pair USD/TRY"
+     }
+     ```
+8. Publish an older message for the same pair:
    ```json
    {
      "provider": "LP1",
@@ -182,21 +220,21 @@ docker compose up -d
      "timestamp": 1710000000000
    }
    ```
-8. Check backend logs for:
+9. Check backend logs for:
    `[RATE_STALE_IGNORED] pair=EUR/USD incomingTimestamp=1710000000000 currentTimestamp=1710000000123`
-9. Publish a newer message for the same pair:
-   ```json
-   {
-     "provider": "LP1",
-     "pair": "EUR/USD",
-     "bid": 1.0850,
-     "ask": 1.0853,
-     "timestamp": 1710000000999
-   }
-   ```
-10. Check backend logs for:
+10. Publish a newer message for the same pair:
+    ```json
+    {
+      "provider": "LP1",
+      "pair": "EUR/USD",
+      "bid": 1.0850,
+      "ask": 1.0853,
+      "timestamp": 1710000000999
+    }
+    ```
+11. Check backend logs for:
     `[RATE_UPDATED] pair=EUR/USD provider=LP1 bid=1.0850 ask=1.0853 spread=0.0003 alarm=false timestamp=1710000000999`
-11. Publish an invalid message (e.g., `ask` lower than `bid`):
+12. Publish an invalid message (e.g., `ask` lower than `bid`):
     ```json
     {
       "provider": "LP1",
@@ -206,12 +244,11 @@ docker compose up -d
       "timestamp": 1710000000123
     }
     ```
-12. Check backend logs for:
+13. Check backend logs for:
     `[RATE_REJECTED] reason=ASK_LESS_THAN_BID payload=...`
 
 ## Next Steps
 
-- Implement REST snapshot endpoints to query latest rates from IMap.
 - Implement inter-instance signaling via Hazelcast Topic.
 - Implement WebSocket broadcasting to handle live client updates.
 - Develop the Frontend UI to display real-time rate changes.
