@@ -18,7 +18,7 @@ public class RateCacheService {
      * Updates the cache with the incoming rate if it is newer than the cached rate for the pair.
      * Uses pair-level locking to avoid race conditions.
      */
-    public void updateCache(Rate incomingRate) {
+    public boolean updateCache(Rate incomingRate) {
         String pair = incomingRate.pair();
         IMap<String, Rate> ratesMap = hazelcastInstance.getMap("rates");
 
@@ -30,9 +30,11 @@ public class RateCacheService {
                 log.info("[RATE_UPDATED] pair={} provider={} bid={} ask={} spread={} alarm={} timestamp={}",
                         incomingRate.pair(), incomingRate.provider(), incomingRate.bid(), incomingRate.ask(),
                         incomingRate.spread(), incomingRate.alarm(), incomingRate.timestamp());
+                return true;
             } else {
                 log.info("[RATE_STALE_IGNORED] pair={} incomingTimestamp={} currentTimestamp={}",
                         incomingRate.pair(), incomingRate.timestamp(), currentRate.timestamp());
+                return false;
             }
         } finally {
             ratesMap.unlock(pair);

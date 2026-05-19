@@ -35,6 +35,12 @@ class FxRateApplicationTests {
     @Autowired
     private MockMvc mockMvc;
 
+    @Autowired
+    private com.fxrate.platform.websocket.handler.RateWebSocketHandler webSocketHandler;
+
+    @Autowired
+    private com.fxrate.platform.websocket.service.RateWebSocketBroadcaster webSocketBroadcaster;
+
     @Value("${app.rabbitmq.rate-input-queue:rate.input.queue}")
     private String queueName;
 
@@ -120,5 +126,38 @@ class FxRateApplicationTests {
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("RATE_NOT_FOUND"))
                 .andExpect(jsonPath("$.message").value("No rate found for pair USD/TRY"));
+    }
+
+    @Test
+    void testWebSocketSubscriptionAndBroadcast() throws Exception {
+        org.springframework.web.socket.WebSocketSession session = org.mockito.Mockito.mock(org.springframework.web.socket.WebSocketSession.class);
+        org.mockito.Mockito.when(session.getId()).thenReturn("test-session-123");
+        org.mockito.Mockito.when(session.isOpen()).thenReturn(true);
+
+        webSocketHandler.afterConnectionEstablished(session);
+        assertThat(webSocketHandler.getSessionSubscriptions()).containsKey(session);
+
+        String subscribeJson = "{\"type\":\"SUBSCRIBE\",\"pairs\":[\"EUR/USD\"]}";
+        webSocketHandler.handleMessage(session, new org.springframework.web.socket.TextMessage(subscribeJson));
+
+        assertThat(webSocketHandler.getSessionSubscriptions().get(session)).contains("EUR/USD");
+        org.mockito.Mockito.verify(session).sendMessage(org.mockito.Mockito.any(org.springframework.web.socket.TextMessage.class));
+
+        org.mockito.Mockito.reset(session);
+        org.mockito.Mockito.when(session.isOpen()).thenReturn(true);
+
+        Rate rate = new Rate("LP1", "EUR/USD", new BigDecimal("1.0850"), new BigDecimal("1.0853"), new BigDecimal("0.0003"), false, 1710000000999L, System.currentTimeMillis());
+        webSocketBroadcaster.broadcastRateUpdate(rate);
+
+        org.mockito.Mockito.verify(session).sendMessage(org.mockito.Mockito.argThat(msg -> {
+            if (msg instanceof org.springframework.web.socket.TextMessage) {
+                String payload = ((org.springframework.web.socket.TextMessage) msg).getPayload();
+                return payload.contains("RATE_UPDATE") && payload.contains("EUR/USD") && payload.contains("1.0850");
+            }
+            return false;
+        }));
+
+        webSocketHandler.afterConnectionClosed(session, org.springframework.web.socket.CloseStatus.NORMAL);
+        assertThat(webSocketHandler.getSessionSubscriptions()).doesNotContainKey(session);
     }
 }
