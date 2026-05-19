@@ -12,15 +12,19 @@ The "Real-Time FX Rate Platform" follows a reactive, event-driven architecture t
     - Invalid messages are logged as `[RATE_REJECTED]` and discarded (not requeued) to prevent infinite retry loops.
     - Malformed JSON messages that fail conversion are also not requeued due to `defaultRequeueRejected=false` configuration.
     - Valid messages are logged as `[RATE_ACCEPTED]` and proceed to the next phase.
-4. **Processing (Future)**:
-    - Updates the **Hazelcast IMap** with the latest rate for each symbol (ensuring timestamp ordering).
+4. **Processing & Caching**:
+    - Converts `RateMessage` to `Rate` and calculates spread and alarm status.
+    - Updates the **Hazelcast IMap** named `"rates"` with the latest rate for each symbol.
+    - Compares incoming and current cached timestamps to ensure strict timestamp ordering.
+    - Uses pair-level locking with `lock(pair)` / `unlock(pair)` to avoid race conditions during updates.
+5. **Broadcasting (Future)**:
     - Publishes the update to a **Hazelcast Topic**.
-5. **Inter-instance Signaling**: All running instances of the Rate Hub subscribe to the Hazelcast Topic.
-6. **WebSocket Broadcasting**: Upon receiving a message from the Hazelcast Topic, each instance broadcasts the update to all its locally connected **WebSocket** clients.
-7. **Frontend**: Receives real-time updates via WebSockets and displays them to the user.
+6. **Inter-instance Signaling (Future)**: All running instances of the Rate Hub subscribe to the Hazelcast Topic.
+7. **WebSocket Broadcasting (Future)**: Upon receiving a message from the Hazelcast Topic, each instance broadcasts the update to all its locally connected **WebSocket** clients.
+8. **Frontend (Future)**: Receives real-time updates via WebSockets and displays them to the user.
 
 ## Why Hazelcast Topic?
 In a multi-instance deployment, a WebSocket client is connected to only one specific instance. When an update arrives from RabbitMQ, it might be consumed by *any* instance. By using Hazelcast Topic, the consuming instance can notify *all* other instances of the update, ensuring that every connected client receives the data regardless of which instance they are connected to.
 
 ---
-*Note: This is the intended final architecture. The current implementation is scaffolding only.*
+*Note: This is the intended final architecture. Ingesting, validation, processing, and Hazelcast state caching are fully implemented. Topic publishing and WebSocket broadcasting are not yet implemented.*

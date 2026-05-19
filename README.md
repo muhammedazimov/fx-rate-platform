@@ -8,7 +8,7 @@ The intended final system will ingest FX rate messages through RabbitMQ, validat
 
 ## Current Status
 
-This repository is currently in the **RabbitMQ Ingestion Foundation** phase. 
+This repository is currently in the **Rate Processing and Hazelcast Cache** phase. 
 
 Implemented so far:
 
@@ -19,7 +19,14 @@ Implemented so far:
 - Docker Compose infrastructure for RabbitMQ and Hazelcast
 - **RabbitMQ Queue and Consumer**: Ingestion layer for `rate.input.queue` is implemented.
 - **Message Validation**: Incoming rates are validated for business rules (positive values, valid spread, etc.).
-- **Logging**: Valid rates are logged as `[RATE_ACCEPTED]`, and invalid rates as `[RATE_REJECTED]`.
+- **Rate Processing & Calculations**: For valid messages, spread and alarm calculations are performed (alarm triggers if spread > `app.rate.spread-alarm-threshold`).
+- **Hazelcast Caching**: The latest valid rate per currency pair is cached in a Hazelcast IMap named `"rates"`.
+- **Timestamp Concurrency & Ordering**: Only updates with a newer timestamp than the currently cached rate are processed; stale or duplicate messages are ignored.
+- **Concurrency Control**: Pair-level locking is used on the IMap to prevent race conditions during updates.
+- **Logging**:
+    - Invalid business messages are logged as `[RATE_REJECTED]`.
+    - Successful updates are logged as `[RATE_UPDATED]`.
+    - Stale or duplicate timestamp updates are logged as `[RATE_STALE_IGNORED]`.
 - **Error Handling**:
     - Business-invalid messages are validated inside the consumer and logged as rejected without throwing exceptions.
     - Malformed or unconvertible messages are not requeued forever because the RabbitMQ listener container is configured with `defaultRequeueRejected=false`.
@@ -27,10 +34,10 @@ Implemented so far:
 
 Not implemented yet:
 
-- Hazelcast IMap cache integration
-- Hazelcast Topic based multi-instance event distribution
-- WebSocket live broadcasting
-- Frontend live rate screen
+- REST snapshot endpoints
+- WebSocket broadcasting
+- Hazelcast Topic multi-instance broadcast
+- Frontend
 - Producer/load simulation
 
 ## Intended Architecture
@@ -91,6 +98,23 @@ fx-rate-platform/
 
 To clean and package the backend application:
 
+> [!IMPORTANT]
+> Running the test suite (i.e. running the build without `-DskipTests`) requires the RabbitMQ and Hazelcast Docker services to be active (`docker compose up -d`). If the Docker services are not running, the integration tests will fail.
+
+**Linux / Mac:**
+```bash
+cd backend
+./mvnw clean package
+```
+
+**Windows:**
+```powershell
+cd backend
+.\mvnw.cmd clean package
+```
+
+To skip the Docker-dependent integration tests during build:
+
 **Linux / Mac:**
 ```bash
 cd backend
@@ -130,7 +154,7 @@ docker compose up -d
 - **RabbitMQ Management UI**: [http://localhost:15672](http://localhost:15672) (guest / guest)
 - **Hazelcast Instance**: `localhost:5701`
 
-### Manual Testing (RabbitMQ Ingestion)
+### Manual Testing (RabbitMQ Ingestion and Caching)
 
 1. Start the infrastructure: `docker compose up -d`
 2. Start the backend: `cd backend` then `.\mvnw.cmd spring-boot:run`
@@ -146,22 +170,48 @@ docker compose up -d
      "timestamp": 1710000000123
    }
    ```
-6. Check backend logs for: `[RATE_ACCEPTED] provider=LP1 pair=EUR/USD bid=1.0845 ask=1.0847 timestamp=1710000000123`
-7. Publish an invalid message (e.g., `ask` lower than `bid`):
+6. Check backend logs for:
+   `[RATE_UPDATED] pair=EUR/USD provider=LP1 bid=1.0845 ask=1.0847 spread=0.0002 alarm=false timestamp=1710000000123`
+7. Publish an older message for the same pair:
+   ```json
+   {
+     "provider": "LP1",
+     "pair": "EUR/USD",
+     "bid": 1.0840,
+     "ask": 1.0842,
+     "timestamp": 1710000000000
+   }
+   ```
+8. Check backend logs for:
+   `[RATE_STALE_IGNORED] pair=EUR/USD incomingTimestamp=1710000000000 currentTimestamp=1710000000123`
+9. Publish a newer message for the same pair:
    ```json
    {
      "provider": "LP1",
      "pair": "EUR/USD",
      "bid": 1.0850,
-     "ask": 1.0840,
-     "timestamp": 1710000000123
+     "ask": 1.0853,
+     "timestamp": 1710000000999
    }
    ```
-8. Check backend logs for: `[RATE_REJECTED] reason=ASK_LESS_THAN_BID payload=...`
+10. Check backend logs for:
+    `[RATE_UPDATED] pair=EUR/USD provider=LP1 bid=1.0850 ask=1.0853 spread=0.0003 alarm=false timestamp=1710000000999`
+11. Publish an invalid message (e.g., `ask` lower than `bid`):
+    ```json
+    {
+      "provider": "LP1",
+      "pair": "EUR/USD",
+      "bid": 1.0850,
+      "ask": 1.0840,
+      "timestamp": 1710000000123
+    }
+    ```
+12. Check backend logs for:
+    `[RATE_REJECTED] reason=ASK_LESS_THAN_BID payload=...`
 
 ## Next Steps
 
-- Integrate Hazelcast for distributed caching of latest rates (IMap).
+- Implement REST snapshot endpoints to query latest rates from IMap.
 - Implement inter-instance signaling via Hazelcast Topic.
 - Implement WebSocket broadcasting to handle live client updates.
 - Develop the Frontend UI to display real-time rate changes.

@@ -1,6 +1,9 @@
 package com.fxrate.platform.rate.consumer;
 
 import com.fxrate.platform.rate.dto.RateMessage;
+import com.fxrate.platform.rate.model.Rate;
+import com.fxrate.platform.rate.service.RateCacheService;
+import com.fxrate.platform.rate.service.RateProcessingService;
 import com.fxrate.platform.rate.service.RateValidationService;
 import com.fxrate.platform.rate.service.ValidationResult;
 import lombok.RequiredArgsConstructor;
@@ -14,15 +17,16 @@ import org.springframework.stereotype.Component;
 public class RateConsumer {
 
     private final RateValidationService validationService;
+    private final RateProcessingService rateProcessingService;
+    private final RateCacheService rateCacheService;
 
     @RabbitListener(queues = "${app.rabbitmq.rate-input-queue:rate.input.queue}")
     public void consumeRate(RateMessage message) {
         ValidationResult result = validationService.validate(message);
 
         if (result.isValid()) {
-            log.info("[RATE_ACCEPTED] provider={} pair={} bid={} ask={} timestamp={}",
-                    message.provider(), message.pair(), message.bid(), message.ask(), message.timestamp());
-            // TODO: Future steps will involve Hazelcast update and WebSocket broadcast
+            Rate processedRate = rateProcessingService.process(message);
+            rateCacheService.updateCache(processedRate);
         } else {
             log.warn("[RATE_REJECTED] reason={} payload={}", result.reason(), message);
         }

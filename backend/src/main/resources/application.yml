@@ -23,17 +23,11 @@ spring:
 app:
   rabbitmq:
     rate-input-queue: rate.input.queue
-
-# Hazelcast Configuration (Placeholders for future implementation)
-# hazelcast:
-#   cluster-name: fx-rate-cluster
-#   network:
-#     join:
-#       multicast:
-#         enabled: false
-#       tcp-ip:
-#         enabled: true
-#         members: 127.0.0.1
+  rate:
+    spread-alarm-threshold: ${SPREAD_ALARM_THRESHOLD:0.0010}
+  hazelcast:
+    cluster-name: ${HAZELCAST_CLUSTER_NAME:fx-rate-cluster}
+    address: ${HAZELCAST_ADDRESS:localhost:5701}
 
 management:
   endpoints:
